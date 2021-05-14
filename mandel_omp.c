@@ -1,25 +1,5 @@
-/*
-Requires a compiler with Openmp support or omp pragmas will be ignored. 
-gcc version 4.2 or higher supports openmp.
-
-
-To build with gcc:
-gcc main.c mandel_omp.c -fopenmp
-
-To force a certain number of parallel threads when running this program:
-Set the environment variable OMP_NUM_THREADS to desired number of threads.
-
-
-Example:
-
-$ OMP_NUM_THREADS=4 OMP_SCHEDULE=dynamic,8 ./a.out 300 300 -0.751 -0.735 0.118 0.134
-
-
-*/
-
-
-
 #include <stdio.h>
+#include <omp.h>
 #include "mandel.h"
 
 int CalcMandel(int width,
@@ -40,6 +20,13 @@ int CalcMandel(int width,
 #ifdef _OPENMP
   #pragma omp single
   printf("Num threads is %d\n", omp_get_num_threads());
+
+#ifndef _MSC_VER // no Visual Studio support for OpenMP 3
+  omp_sched_t kind;
+  int chunkSize;
+  omp_get_schedule(&kind, &chunkSize);
+  printf("Schedule kind %d  chunk size %d\n", kind, chunkSize);
+#endif
 #endif
 
   #pragma omp for private(iteration, rval, ival, rval0, ival0, rtemp, y) schedule(runtime)
