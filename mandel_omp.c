@@ -24,8 +24,11 @@ int CalcMandel(int width,
 #ifndef _MSC_VER // no Visual Studio support for OpenMP 3
   omp_sched_t kind;
   int chunkSize;
-  omp_get_schedule(&kind, &chunkSize);
-  printf("Schedule kind %d  chunk size %d\n", kind, chunkSize);
+  #pragma omp single
+  {
+    omp_get_schedule(&kind, &chunkSize);
+    printf("Schedule kind %d  chunk size %d\n", kind, chunkSize);
+  }
 #endif
 #endif
 
