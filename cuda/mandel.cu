@@ -6,13 +6,7 @@
 #include <helper_cuda.h>
 #include <cassert>
 
-#define U32 uint32_t
-#define U16 uint16_t
-#define U8  unsigned char
-
-
-#define PIXELVAL U32
-#define MAXITERATION 2000
+#include "../mandel.h"
 
 #define COLORSUSED 200
 #define MAXCOLORVAL 255  // maximum 8 bit rgb value
@@ -109,6 +103,37 @@ void Mandelval2Color(PIXELVAL pixval, COLOR24BIT* colorval_p)
     colorval_p->green *= 2;
     colorval_p->red *= 2;
 
+}
+
+int SaveRawNumberOfIterations(char* pszFile,
+    int width,
+    int height,
+    PIXELVAL* indata_p)
+{
+    FILE* outfile;
+
+    outfile = fopen(pszFile, "wb");
+    if (!outfile)
+    {
+        printf("Failed to open file %s for writing\n", pszFile);
+        return 1;
+    }
+
+    // write image data
+    if (fwrite(indata_p, sizeof(PIXELVAL) * width * height, 1, outfile) != 1)
+    {
+        printf("Failed to write image data to file\n");
+        fclose(outfile); // never mind return value
+        return 1;
+    }
+
+    if (fclose(outfile))
+    {
+        printf("Failed to close file %s\n", pszFile);
+        return 1;
+    }
+
+    return 0;
 }
 
 int SavePic(char* pszFile,
@@ -268,25 +293,6 @@ __global__ void MandelBrotIterations(const double* rval0Array, const double* iva
 }
 
 
-/////
-
-/**
- * CUDA Kernel Device code
- *
- * Computes the vector addition of A and B into C. The 3 vectors have the same
- * number of elements numElements.
- */
-__global__ void
-vectorAdd(const float *A, const float *B, float *C, int numElements)
-{
-    int i = blockDim.x * blockIdx.x + threadIdx.x;
-
-    if (i < numElements)
-    {
-        C[i] = A[i] + B[i];
-    }
-}
-
 /**
  * Host main routine
  */
@@ -301,15 +307,17 @@ main(int argc, char* argv[])
     int width, height;
     float rmin, rmax, imin, imax;
     char szFileName[] = "result.bmp";
+    char szRawFileName[] = "result.raw";
     time_t starttime, endtime, elapsed;
     int x, y, index;
     double rval0, ival0;
+    bool rawoutput = false;
 
     assert(sizeof(U32) == 4);
     assert(sizeof(U16) == 2);
     assert(sizeof(U8) == 1);
 
-    if (argc != 7)
+    if (argc < 7)
     {
         printf("\nusage: %s <width> <height> <rmin> <rmax> <imin> <imax>\n\n\n" \
             "Example:\n%s 400 400 -0.751 -0.735 0.118 0.134\n\n", argv[0], argv[0]);
@@ -323,8 +331,18 @@ main(int argc, char* argv[])
     sscanf(argv[5], "%f", &imin);
     sscanf(argv[6], "%f", &imax);
 
-    printf("width    %d\nheight   %d\nrmin   %f\nrmax   %f\nimin   %f\nimax   %f\n\n",
+    int argn;
+    for (argn = 7; argn < argc; ++argn)
+    {
+        if (!strncmp( argv[argn], "-r", 3))
+        {
+            rawoutput = true;
+        }
+    }
+
+    printf("width    %d\nheight   %d\nrmin   %f\nrmax   %f\nimin   %f\nimax   %f\n",
         width, height, rmin, rmax, imin, imax);
+    printf("output format: %s\n\n", rawoutput ? "raw" : "24 bit bmp");
     
 
     /////////
@@ -435,13 +453,22 @@ main(int argc, char* argv[])
     elapsed = endtime - starttime;
     printf("Processing time: %lld sec\n\n", elapsed);
 
-    if (SavePic(szFileName, width, height, mandelData_p))
+    char* outFileName = rawoutput ? szRawFileName : szFileName;
+    if (rawoutput)
+    {
+        if (SaveRawNumberOfIterations(outFileName, width, height, mandelData_p))
+        {
+            printf("Failed to save file\n");
+            return 1;
+        }
+    }
+    else if (SavePic(outFileName, width, height, mandelData_p))
     {
         printf("Failed to save file\n");
         return 1;
     }
 
-    printf("Output file: %s\n", szFileName);
+    printf("Output file: %s\n", outFileName);
 
     err = cudaFree(d_rvals);
 

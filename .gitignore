@@ -2,6 +2,7 @@
 *.obj
 *.out
 *.bmp
+*.raw
 cuda/bin
 cuda/x64
 cuda/.vs
