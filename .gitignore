@@ -2,3 +2,7 @@
 *.obj
 *.out
 *.bmp
+cuda/bin
+cuda/x64
+cuda/.vs
+cuda/*.user
