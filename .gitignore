@@ -3,6 +3,7 @@
 *.out
 *.bmp
 *.raw
+*.rgb
 cuda/bin
 cuda/x64
 cuda/.vs
